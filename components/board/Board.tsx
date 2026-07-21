@@ -1,3 +1,6 @@
+// Library: shadcn/ui
+// Path: components/board/Board.tsx
+
 'use client'
 
 import { useState, useRef } from 'react'
@@ -7,7 +10,8 @@ import { ShotCard } from './ShotCard'
 import { ShotCardSkeleton } from './ShotCardSkeleton'
 import { PdfExportButton } from './PdfExportButton'
 import { reorderShots } from '@/lib/actions/shot-actions'
-import { ErrorBanner } from '@/components/ui/ErrorBanner'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/Button'
 import type { ShotPublic, ContinuityContext } from '@/lib/types'
 
 interface BoardProps {
@@ -151,27 +155,30 @@ export function Board({ initialShots, sceneId, sceneScript, sceneName }: BoardPr
 
   return (
     <div className="flex flex-col gap-4">
-      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <button
+        <Button
           onClick={handleGenerate}
           disabled={generatingAll || !!regeneratingId}
-          className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          <Wand2 className="h-4 w-4" />
+          <Wand2 className="mr-2 h-4 w-4" />
           {generatingAll ? 'Generating…' : 'Generate shots'}
-        </button>
+        </Button>
         {shots.length > 0 && (
-          <button
+          <Button
+            variant="outline"
             onClick={handleContinueScene}
             disabled={generatingAll || !!regeneratingId}
-            className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4" />
             Continue scene
-          </button>
+          </Button>
         )}
         {shots.length > 0 && (
           <PdfExportButton boardRef={boardRef} sceneName={sceneName} />
@@ -213,7 +220,7 @@ export function Board({ initialShots, sceneId, sceneScript, sceneName }: BoardPr
       </DragDropContext>
 
       {shots.length === 0 && !generatingAll && (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-muted-foreground">
           Click &quot;Generate shots&quot; to create a storyboard from your scene script.
         </p>
       )}

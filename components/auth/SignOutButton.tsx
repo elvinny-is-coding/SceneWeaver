@@ -1,6 +1,10 @@
+// Library: shadcn/ui
+// Path: components/auth/SignOutButton.tsx
+
 'use client'
 
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/Button'
 
 export function SignOutButton() {
   async function handleSignOut() {
@@ -10,11 +14,12 @@ export function SignOutButton() {
   }
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="sm"
       onClick={handleSignOut}
-      className="text-sm text-gray-500 hover:text-gray-900"
     >
       Sign out
-    </button>
+    </Button>
   )
 }

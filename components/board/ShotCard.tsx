@@ -1,9 +1,15 @@
+// Library: shadcn/ui
+// Path: components/board/ShotCard.tsx
+
 'use client'
 
 import { useState } from 'react'
 import { Draggable } from '@hello-pangea/dnd'
 import { RefreshCw, Trash2 } from 'lucide-react'
 import { deleteShot } from '@/lib/actions/shot-actions'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/Button'
 import type { ShotPublic } from '@/lib/types'
 
 interface ShotCardProps {
@@ -27,16 +33,16 @@ export function ShotCard({ shot, index, onRegenerate, onDeleted, isRegenerating 
   return (
     <Draggable draggableId={shot.id} index={index}>
       {(provided, snapshot) => (
-        <div
+        <Card
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition ${
-            snapshot.isDragging ? 'border-blue-400 shadow-md rotate-1' : 'border-gray-200'
+          className={`flex flex-col overflow-hidden transition ${
+            snapshot.isDragging ? 'ring-2 ring-primary shadow-md rotate-1' : ''
           } ${isRegenerating || deleting ? 'opacity-50 pointer-events-none' : ''}`}
         >
           {/* Image area */}
-          <div className="relative aspect-video bg-gray-100">
+          <div className="relative aspect-video bg-muted">
             {shot.image_url ? (
               <img
                 src={shot.image_url}
@@ -44,52 +50,56 @@ export function ShotCard({ shot, index, onRegenerate, onDeleted, isRegenerating 
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-gray-400">
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                 No image
               </div>
             )}
-            <span className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-xs font-semibold text-white">
+            <Badge
+              variant="secondary"
+              className="absolute left-2 top-2 bg-black/60 text-white hover:bg-black/60"
+            >
               #{shot.shot_number}
-            </span>
+            </Badge>
           </div>
 
           {/* Metadata */}
-          <div className="flex flex-col gap-1 p-3">
+          <CardContent className="flex flex-col gap-1 py-3">
             <div className="flex flex-wrap gap-1">
               {[shot.angle, shot.framing, shot.movement].map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
-                >
+                <Badge key={tag} variant="secondary">
                   {tag}
-                </span>
+                </Badge>
               ))}
             </div>
-            <p className="mt-1 text-xs font-medium text-gray-700">
-              Mood: <span className="font-normal">{shot.mood}</span>
+            <p className="mt-1 text-xs font-medium text-foreground">
+              Mood: <span className="font-normal text-muted-foreground">{shot.mood}</span>
             </p>
-          </div>
+          </CardContent>
 
           {/* Actions */}
-          <div className="flex gap-1 border-t border-gray-100 px-3 py-2">
-            <button
+          <div className="flex gap-1 border-t border-border px-3 py-2">
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => onRegenerate(shot.id)}
               disabled={isRegenerating}
-              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 hover:text-blue-600 disabled:opacity-40"
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
-              <RefreshCw className={`h-3 w-3 ${isRegenerating ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`mr-1 h-3 w-3 ${isRegenerating ? 'animate-spin' : ''}`} />
               Regenerate
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleDelete}
               disabled={deleting}
-              className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+              className="ml-auto text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="mr-1 h-3 w-3" />
               Delete
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
     </Draggable>
   )

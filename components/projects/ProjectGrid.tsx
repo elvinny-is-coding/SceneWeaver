@@ -1,3 +1,6 @@
+// Library: shadcn/ui
+// Path: components/projects/ProjectGrid.tsx
+
 'use client'
 
 import { ProjectCard } from './ProjectCard'
@@ -10,9 +13,9 @@ interface ProjectGridProps {
 export function ProjectGrid({ projects }: ProjectGridProps) {
   if (projects.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted-foreground">
         No projects yet.{' '}
-        <a href="/projects/new" className="text-blue-600 hover:underline">
+        <a href="/projects/new" className="text-primary hover:underline">
           Create your first project.
         </a>
       </p>

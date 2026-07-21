@@ -1,7 +1,11 @@
+// Library: shadcn/ui
+// Path: components/board/PdfExportButton.tsx
+
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 
 interface PdfExportButtonProps {
   boardRef: React.RefObject<HTMLDivElement | null>
@@ -30,13 +34,13 @@ export function PdfExportButton({ boardRef, sceneName }: PdfExportButtonProps) {
   }
 
   return (
-    <button
+    <Button
+      variant="outline"
       onClick={handleExport}
       disabled={loading}
-      className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
     >
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
       Export PDF
-    </button>
+    </Button>
   )
 }

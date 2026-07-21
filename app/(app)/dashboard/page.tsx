@@ -1,3 +1,6 @@
+// Library: shadcn/ui
+// Path: app/(app)/dashboard/page.tsx
+
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ProjectGrid } from '@/components/projects/ProjectGrid'
@@ -18,10 +21,10 @@ export default async function DashboardPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">Your projects</h1>
+        <h1 className="text-xl font-semibold text-foreground">Your projects</h1>
         <Link
           href="/projects/new"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/80"
         >
           New project
         </Link>
