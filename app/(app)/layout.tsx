@@ -1,7 +1,7 @@
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getSupabaseBrowserClient } from '@/lib/supabase/client'
+import { SignOutButton } from '@/components/auth/SignOutButton'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await getSupabaseServerClient()
@@ -20,23 +20,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
       <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
     </div>
-  )
-}
-
-// Inline client component — avoids a separate file for a single button
-function SignOutButton() {
-  'use client'
-  const handleSignOut = async () => {
-    const supabase = getSupabaseBrowserClient()
-    await supabase.auth.signOut()
-    window.location.href = '/login'
-  }
-  return (
-    <button
-      onClick={handleSignOut}
-      className="text-sm text-gray-500 hover:text-gray-900"
-    >
-      Sign out
-    </button>
   )
 }
