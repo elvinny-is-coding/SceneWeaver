@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/service'
 
+// Vercel Hobby max is 60s — image generation can be slow
+export const maxDuration = 60
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -14,6 +17,7 @@ async function fetchImageWithRetry(url: string, apiKey: string): Promise<Respons
     try {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(50_000), // 50s per attempt
       })
       if (res.ok) return res
       if (attempt === 1) throw new Error(`HTTP ${res.status}`)

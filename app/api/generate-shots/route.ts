@@ -3,6 +3,9 @@ import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/service'
 import type { ContinuityContext } from '@/lib/types'
 
+// Vercel Hobby max is 60s — Pollinations text generation can be slow
+export const maxDuration = 60
+
 interface ShotInternal {
   shot_number: number
   angle: string
@@ -96,6 +99,7 @@ async function callPollinations(prompt: string): Promise<string> {
       messages: [{ role: 'user', content: prompt }],
       jsonMode: true,
     }),
+    signal: AbortSignal.timeout(50_000), // 50s — leaves headroom before the 60s Vercel limit
   })
   if (!res.ok) throw new Error(`Pollinations text HTTP ${res.status}`)
   const data = await res.json() as { choices?: { message?: { content?: string } }[] }
