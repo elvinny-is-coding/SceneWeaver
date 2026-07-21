@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/service'
+import { getRequiredServerEnv } from '@/lib/env'
 import type { ContinuityContext } from '@/lib/types'
 
-// Vercel Hobby max is 60s — Pollinations text generation can be slow
+// Vercel Hobby max is 60s
 export const maxDuration = 60
 
 interface ShotInternal {
@@ -84,35 +85,45 @@ Scene script:
 ${script}`
 }
 
-async function callPollinations(prompt: string): Promise<string> {
-  const apiKey = process.env.POLLINATIONS_API_KEY
-  if (!apiKey) throw new Error('POLLINATIONS_API_KEY not set')
-
-  // quest keys use ?token= query param; sk_ keys use Authorization: Bearer
-  const isQuestKey = apiKey.startsWith('quest_') || (!apiKey.startsWith('sk_'))
-  const url = isQuestKey
-    ? `https://text.pollinations.ai/openai?token=${encodeURIComponent(apiKey)}`
-    : 'https://text.pollinations.ai/openai'
-
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (!isQuestKey) headers['Authorization'] = `Bearer ${apiKey}`
+// Cloudflare Workers AI — text inference
+async function callCloudflareText(prompt: string): Promise<string> {
+  const apiKey = getRequiredServerEnv('CLOUDFLARE_WORKER_AI_API_KEY')
+  const accountId = getRequiredServerEnv('CLOUDFLARE_WORKER_AI_ACCOUNT_ID')
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/meta/llama-3.3-70b-instruct-fp8-fast`
 
   const res = await fetch(url, {
     method: 'POST',
-    headers,
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({
-      model: 'openai',
-      messages: [{ role: 'user', content: prompt }],
-      jsonMode: true,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a professional storyboard supervisor. Return only valid JSON arrays with no markdown or explanation.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      max_tokens: 2048,
     }),
     signal: AbortSignal.timeout(50_000),
   })
+
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    throw new Error(`Pollinations text HTTP ${res.status}: ${body.slice(0, 200)}`)
+    throw new Error(`Cloudflare AI text HTTP ${res.status}: ${body.slice(0, 200)}`)
   }
-  const data = await res.json() as { choices?: { message?: { content?: string } }[] }
-  return data?.choices?.[0]?.message?.content ?? ''
+
+  // Cloudflare Workers AI response shape: { result: { response: string }, success: boolean }
+  const data = await res.json() as { result?: { response?: string }; success?: boolean; errors?: { message: string }[] }
+
+  if (!data.success) {
+    const msg = data.errors?.map((e) => e.message).join(', ') ?? 'Unknown error'
+    throw new Error(`Cloudflare AI error: ${msg}`)
+  }
+
+  return data.result?.response ?? ''
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -166,17 +177,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!sceneOwner)
     return NextResponse.json({ error: 'Scene not found' }, { status: 404 })
 
-  // ── Call Pollinations with one retry on parse failure ──────
+  // ── Call Cloudflare AI with one retry on parse failure ─────
   const prompt = buildPrompt(cleanScript, continuity_context)
   let shots: ShotInternal[] | null = null
 
   for (let attempt = 0; attempt < 2; attempt++) {
     let raw: string
     try {
-      raw = await callPollinations(prompt)
-    } catch {
-      if (attempt === 1)
+      raw = await callCloudflareText(prompt)
+    } catch (error) {
+      if (attempt === 1) {
+        console.error('Cloudflare AI text request failed:', error)
         return NextResponse.json({ error: 'AI service unavailable' }, { status: 502 })
+      }
       continue
     }
     const parsed = extractJson(raw)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { getRequiredServerEnv } from '@/lib/env'
 
 // Handles the PKCE code exchange after Supabase sends the confirmation email.
 // Supabase redirects to this route with ?code=... after the user clicks the link.
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    getRequiredServerEnv('NEXT_PUBLIC_SUPABASE_URL'),
+    getRequiredServerEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'),
     {
       cookies: {
         getAll: () => cookieStore.getAll(),

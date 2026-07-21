@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: 'image.pollinations.ai',
         pathname: '/prompt/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'gen.pollinations.ai',
+        pathname: '/image/**',
+      },
     ],
   },
   experimental: {

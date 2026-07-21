@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { getSupabaseServiceClient } from '@/lib/supabase/service'
+import { getRequiredServerEnv } from '@/lib/env'
 
 // Vercel Hobby max is 60s — image generation can be slow
 export const maxDuration = 60
@@ -12,32 +13,58 @@ interface RequestBody {
   shot_id: string
 }
 
-function buildImageUrl(visualPrompt: string, apiKey: string): string {
-  const encoded = encodeURIComponent(visualPrompt)
-  const base = `https://image.pollinations.ai/prompt/${encoded}?model=flux&width=768&height=432&nologo=true`
-  // quest keys use ?token= query param; sk_ keys use Authorization: Bearer
-  const isQuestKey = !apiKey.startsWith('sk_')
-  return isQuestKey ? `${base}&token=${encodeURIComponent(apiKey)}` : base
-}
-
-async function fetchImageWithRetry(url: string, apiKey: string): Promise<Response> {
-  const isQuestKey = !apiKey.startsWith('sk_')
-  const headers: Record<string, string> = {}
-  if (!isQuestKey) headers['Authorization'] = `Bearer ${apiKey}`
+// Cloudflare Workers AI — flux-1-schnell returns raw PNG bytes
+async function generateImageWithRetry(visualPrompt: string): Promise<{ buffer: ArrayBuffer; contentType: string }> {
+  const apiKey = getRequiredServerEnv('CLOUDFLARE_WORKER_AI_API_KEY')
+  const accountId = getRequiredServerEnv('CLOUDFLARE_WORKER_AI_ACCOUNT_ID')
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(url, {
-        headers,
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: visualPrompt,
+          num_steps: 4,       // flux-schnell optimal step count
+          width: 768,
+          height: 432,
+        }),
         signal: AbortSignal.timeout(50_000),
       })
-      if (res.ok) return res
-      if (attempt === 1) throw new Error(`HTTP ${res.status}`)
+
+      if (!res.ok) {
+        if (attempt === 1) throw new Error(`Cloudflare AI image HTTP ${res.status}`)
+        continue
+      }
+
+      // Cloudflare flux returns JSON: { result: { image: "<base64>" }, success: true }
+      const data = await res.json() as {
+        result?: { image?: string }
+        success?: boolean
+        errors?: { message: string }[]
+      }
+
+      if (!data.success || !data.result?.image) {
+        const msg = data.errors?.map((e) => e.message).join(', ') ?? 'No image returned'
+        if (attempt === 1) throw new Error(`Cloudflare AI image error: ${msg}`)
+        continue
+      }
+
+      // Decode base64 image from Cloudflare response
+      const binaryStr = atob(data.result.image)
+      const bytes = new Uint8Array(binaryStr.length)
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
+      return { buffer: bytes.buffer, contentType: 'image/png' }
+
     } catch (err) {
       if (attempt === 1) throw err
     }
   }
-  throw new Error('Image fetch failed')
+  throw new Error('Image generation failed after retries')
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -86,22 +113,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!shot)
     return NextResponse.json({ error: 'Shot not found' }, { status: 404 })
 
-  // ── API key ────────────────────────────────────────────────
-  const apiKey = process.env.POLLINATIONS_API_KEY
-  if (!apiKey)
-    return NextResponse.json({ error: 'Image service not configured' }, { status: 500 })
-
-  // ── Build Pollinations image URL (token embedded for quest keys) ──
-  const imageUrl = buildImageUrl(shot.visual_prompt, apiKey)
-
-  // ── Fetch server-side with single retry ───────────────────
+  // ── Generate image via Cloudflare Workers AI ───────────────
   let imageBuffer: ArrayBuffer
   let contentType: string
   try {
-    const imageRes = await fetchImageWithRetry(imageUrl, apiKey)
-    imageBuffer = await imageRes.arrayBuffer()
-    contentType = imageRes.headers.get('content-type') ?? 'image/jpeg'
-  } catch {
+    const result = await generateImageWithRetry(shot.visual_prompt)
+    imageBuffer = result.buffer
+    contentType = result.contentType
+  } catch (error) {
+    console.error('Cloudflare image generation failed:', error)
     // visual_prompt intentionally excluded from error response
     return NextResponse.json({ error: 'Image generation failed' }, { status: 502 })
   }
