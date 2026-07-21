@@ -44,15 +44,32 @@ function sanitizeScript(raw: string): string {
 }
 
 function extractJson(raw: string): unknown[] | null {
-  const start = raw.indexOf('[')
-  const end = raw.lastIndexOf(']')
-  if (start === -1 || end === -1 || end <= start) return null
-  try {
-    const parsed = JSON.parse(raw.slice(start, end + 1))
-    return Array.isArray(parsed) ? parsed : null
-  } catch {
-    return null
+  // Strip markdown code fences Llama commonly wraps output in
+  const stripped = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim()
+
+  // 1. Try bare array: [...]
+  const arrStart = stripped.indexOf('[')
+  const arrEnd = stripped.lastIndexOf(']')
+  if (arrStart !== -1 && arrEnd > arrStart) {
+    try {
+      const parsed = JSON.parse(stripped.slice(arrStart, arrEnd + 1))
+      if (Array.isArray(parsed)) return parsed
+    } catch { /* fall through */ }
   }
+
+  // 2. Try object wrapper: { "shots": [...] } or { "data": [...] } etc.
+  const objStart = stripped.indexOf('{')
+  const objEnd = stripped.lastIndexOf('}')
+  if (objStart !== -1 && objEnd > objStart) {
+    try {
+      const parsed = JSON.parse(stripped.slice(objStart, objEnd + 1)) as Record<string, unknown>
+      // Find the first array-valued key
+      const arrayVal = Object.values(parsed).find((v) => Array.isArray(v))
+      if (Array.isArray(arrayVal)) return arrayVal
+    } catch { /* fall through */ }
+  }
+
+  return null
 }
 
 function validateShot(obj: unknown): obj is ShotInternal {
@@ -101,11 +118,12 @@ async function callCloudflareText(prompt: string): Promise<string> {
       messages: [
         {
           role: 'system',
-          content: 'You are a professional storyboard supervisor. Return only valid JSON arrays with no markdown or explanation.',
+          content: 'You are a JSON-only API. You must respond with a raw JSON array and nothing else. No markdown, no code fences, no explanation, no preamble. Start your response with [ and end with ].',
         },
         { role: 'user', content: prompt },
       ],
       max_tokens: 2048,
+      response_format: { type: 'json_object' },
     }),
     signal: AbortSignal.timeout(50_000),
   })
