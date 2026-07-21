@@ -1,0 +1,142 @@
+version: "1.0.0"
+last_updated: "2026-07-22"
+
+stack:
+  ui_components: "shadcn/ui"
+  styling: "Tailwind CSS"
+  rich_text_editor: "Tiptap"
+  visual_animated: "Magic UI"
+  locked: true
+  prohibited:
+    - quill
+    - draft-js
+    - slate
+    - styled-components
+    - css-modules
+    - emotion
+    - chakra-ui
+    - material-ui
+    - ant-design
+    - radix-ui-direct
+    - inline-styles
+
+folder_map:
+  "src/components/ui/": "shadcn/ui primitives only — installed via npx shadcn@latest add"
+  "src/components/editor/": "Tiptap editor instance and composition"
+  "src/components/editor/extensions/": "Custom Tiptap Node and Mark extensions"
+  "src/components/magic/": "Magic UI components — copy-pasted from magicui.design and adapted to project tokens"
+  "src/components/shared/": "Composite components combining ui/, editor/, and magic/"
+  "src/styles/": "Tailwind globals only (globals.css) — no other CSS files"
+
+enforcement:
+  before_generating_ui:
+    - Identify which folder the component belongs in based on folder_map.
+    - Confirm the governing library for that folder before writing any code.
+    - Include the required file header comment declaring library ownership and folder path.
+  before_styling:
+    - Verify every Tailwind class or design token exists in tailwind.config.ts.
+    - Never hardcode hex color values, pixel spacing, or font sizes directly in component files.
+    - Never use inline style attributes.
+    - Always add dark: prefixed variants alongside light variants.
+  before_editor_feature:
+    - Check src/components/editor/extensions/ for an existing extension that covers the requirement.
+    - If none exists, create a new dedicated Tiptap Node or Mark extension in that folder.
+    - Never use contenteditable directly or any rich text library other than Tiptap.
+  before_visual_component:
+    - Check src/components/magic/ for an existing adapted Magic UI component before sourcing a new one.
+    - If sourcing new, copy from https://magicui.design/docs/components into src/components/magic/.
+    - Adapt all tokens to use tailwind.config.ts values — never leave hardcoded Magic UI defaults.
+    - Wrap every animated component with a prefers-reduced-motion guard.
+  library_installs:
+    - Never suggest or install a new UI library without explicit user approval.
+    - The stack is locked. Only shadcn/ui, Tailwind CSS, Tiptap, and Magic UI are permitted.
+  shadcn_install:
+    - Always install shadcn/ui components via: npx shadcn@latest add <component>
+    - Never copy-paste or manually recreate shadcn/ui component internals.
+
+rules:
+  ui:
+    library: "shadcn/ui"
+    source_folder: "src/components/ui/"
+    install_command: "npx shadcn@latest add <component>"
+    primitives_required: true
+    description: >
+      All interactive UI elements (buttons, inputs, dialogs, dropdowns, cards, badges,
+      tabs, tooltips, selects, popovers, sheets, etc.) must use shadcn/ui primitives
+      from src/components/ui/. Raw HTML equivalents (div, button, input, select, textarea)
+      are prohibited where a shadcn/ui component exists.
+    dark_mode: "class strategy via Tailwind — all components must include dark: variants"
+    file_header_template: |
+      // Library: shadcn/ui
+      // Path: src/components/ui/<ComponentName>.tsx
+
+  editor:
+    library: "Tiptap"
+    source_folder: "src/components/editor/"
+    extensions_folder: "src/components/editor/extensions/"
+    package: "@tiptap/react"
+    description: >
+      All rich text editing and screenplay formatting must use Tiptap. The editor
+      instance lives in src/components/editor/. Custom screenplay element types
+      (Scene Heading, Action, Character, Dialogue, Parenthetical, Transition) must
+      each be a dedicated Tiptap Node extension in src/components/editor/extensions/.
+    serialization:
+      persist: "editor.getJSON()"
+      restore: "editor.commands.setContent(json)"
+      prohibited: "raw HTML serialization for storage"
+    toolbar: "Built with shadcn/ui components styled with Tailwind"
+    prohibited_alternatives:
+      - quill
+      - draft-js
+      - slate
+      - prosemirror-direct
+      - contenteditable-direct
+    screenplay_node_extensions:
+      - SceneHeading
+      - Action
+      - Character
+      - Dialogue
+      - Parenthetical
+      - Transition
+    file_header_template: |
+      // Library: Tiptap
+      // Path: src/components/editor/<filename>.tsx
+
+  visuals:
+    library: "Magic UI"
+    source_folder: "src/components/magic/"
+    source_url: "https://magicui.design/docs/components"
+    install_method: "copy-paste into src/components/magic/ — no npm package"
+    description: >
+      All visual flourishes, animated components, scene image cards, prompt control
+      panels, and decorative UI elements must use Magic UI. Components are copied
+      from magicui.design into src/components/magic/ and adapted to use project
+      Tailwind config tokens. Never import Magic UI from an npm package.
+    scene_cards: "Use Magic UI card or Bento Grid as the base layout primitive"
+    prompt_controls: "Use Magic UI animated input or spotlight components where applicable"
+    motion:
+      reduced_motion_guard: true
+      implementation: "Wrap all animated components with a prefers-reduced-motion check"
+      css_guard: "@media (prefers-reduced-motion: reduce) — disable or simplify animations"
+    token_adaptation:
+      required: true
+      rule: "Replace all hardcoded Magic UI color and spacing values with tailwind.config.ts tokens"
+    file_header_template: |
+      // Library: Magic UI
+      // Path: src/components/magic/<ComponentName>.tsx
+
+  styling:
+    engine: "Tailwind CSS"
+    config_file: "tailwind.config.ts"
+    strategy: "utility-classes-only"
+    dark_mode_strategy: "class"
+    design_token_source: "tailwind.config.ts — single source of truth"
+    rules:
+      - Use only Tailwind utility classes for all styling.
+      - Never use inline style attributes on any element.
+      - Never use CSS modules, styled-components, or external CSS files (except Tailwind globals).
+      - Never hardcode color hex values — use tokens defined in tailwind.config.ts.
+      - Never hardcode spacing values (px, rem) — use Tailwind spacing scale.
+      - All components must declare both light and dark variants using dark: prefixed classes.
+      - tailwind.config.ts is the only place where design tokens (colors, spacing, radius, shadows, fonts) may be defined.
+      - globals.css in src/styles/ may only contain @tailwind base/components/utilities directives and CSS custom properties that feed into tailwind.config.ts tokens.

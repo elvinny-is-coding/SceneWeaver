@@ -2,6 +2,7 @@ import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { SignOutButton } from '@/components/auth/SignOutButton'
+import { ThemeToggle } from '@/components/shared/ThemeToggle'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await getSupabaseServerClient()
@@ -15,7 +16,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard" className="text-base font-bold text-gray-900">
             SceneWeaver
           </Link>
-          <SignOutButton />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <SignOutButton />
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
