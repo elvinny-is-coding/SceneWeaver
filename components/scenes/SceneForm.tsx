@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
+import { ScriptEditor } from '@/components/editor/ScriptEditor'
 import { createScene } from '@/lib/actions/scene-actions'
 import { Loader2 } from 'lucide-react'
 import type { SceneRow } from '@/lib/types'
@@ -60,21 +61,15 @@ export function SceneForm({ projectId, onCreated, onCancel }: SceneFormProps) {
               placeholder="Act 1 — Opening"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="scene-script" className="text-sm font-medium text-foreground">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">
               Scene script
             </label>
-            <textarea
-              id="scene-script"
-              required
-              maxLength={2000}
+            <ScriptEditor
               value={script}
-              onChange={(e) => setScript(e.target.value)}
-              rows={4}
+              onChange={setScript}
               placeholder="Describe what happens in this scene…"
-              className="rounded-lg border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground shadow-sm transition-colors focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
             />
-            <p className="text-right text-xs text-muted-foreground">{script.length}/2000</p>
           </div>
           <div className="flex gap-2">
             <Button type="submit" disabled={loading}>
