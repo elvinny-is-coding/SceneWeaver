@@ -88,20 +88,29 @@ async function callPollinations(prompt: string): Promise<string> {
   const apiKey = process.env.POLLINATIONS_API_KEY
   if (!apiKey) throw new Error('POLLINATIONS_API_KEY not set')
 
-  const res = await fetch('https://text.pollinations.ai/openai', {
+  // quest keys use ?token= query param; sk_ keys use Authorization: Bearer
+  const isQuestKey = apiKey.startsWith('quest_') || (!apiKey.startsWith('sk_'))
+  const url = isQuestKey
+    ? `https://text.pollinations.ai/openai?token=${encodeURIComponent(apiKey)}`
+    : 'https://text.pollinations.ai/openai'
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (!isQuestKey) headers['Authorization'] = `Bearer ${apiKey}`
+
+  const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: 'openai',
       messages: [{ role: 'user', content: prompt }],
       jsonMode: true,
     }),
-    signal: AbortSignal.timeout(50_000), // 50s — leaves headroom before the 60s Vercel limit
+    signal: AbortSignal.timeout(50_000),
   })
-  if (!res.ok) throw new Error(`Pollinations text HTTP ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Pollinations text HTTP ${res.status}: ${body.slice(0, 200)}`)
+  }
   const data = await res.json() as { choices?: { message?: { content?: string } }[] }
   return data?.choices?.[0]?.message?.content ?? ''
 }

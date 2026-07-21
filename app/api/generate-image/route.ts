@@ -12,12 +12,24 @@ interface RequestBody {
   shot_id: string
 }
 
+function buildImageUrl(visualPrompt: string, apiKey: string): string {
+  const encoded = encodeURIComponent(visualPrompt)
+  const base = `https://image.pollinations.ai/prompt/${encoded}?model=flux&width=768&height=432&nologo=true`
+  // quest keys use ?token= query param; sk_ keys use Authorization: Bearer
+  const isQuestKey = !apiKey.startsWith('sk_')
+  return isQuestKey ? `${base}&token=${encodeURIComponent(apiKey)}` : base
+}
+
 async function fetchImageWithRetry(url: string, apiKey: string): Promise<Response> {
+  const isQuestKey = !apiKey.startsWith('sk_')
+  const headers: Record<string, string> = {}
+  if (!isQuestKey) headers['Authorization'] = `Bearer ${apiKey}`
+
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        signal: AbortSignal.timeout(50_000), // 50s per attempt
+        headers,
+        signal: AbortSignal.timeout(50_000),
       })
       if (res.ok) return res
       if (attempt === 1) throw new Error(`HTTP ${res.status}`)
@@ -79,9 +91,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!apiKey)
     return NextResponse.json({ error: 'Image service not configured' }, { status: 500 })
 
-  // ── Build Pollinations image URL ───────────────────────────
-  const encodedPrompt = encodeURIComponent(shot.visual_prompt)
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?model=flux&width=768&height=432&nologo=true`
+  // ── Build Pollinations image URL (token embedded for quest keys) ──
+  const imageUrl = buildImageUrl(shot.visual_prompt, apiKey)
 
   // ── Fetch server-side with single retry ───────────────────
   let imageBuffer: ArrayBuffer
